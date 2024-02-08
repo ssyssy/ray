@@ -29,7 +29,7 @@ _EXPERIMENT_PARAMS = {
         "cpus_per_worker": 1,
     },
     "10G": {
-        "data": " s3://siyuan-overmind-bucket/10G-xgboost-data/",
+        "data": "s3://siyuan-overmind-bucket/10G-xgboost-data/",
         "num_workers": 1,
         "cpus_per_worker": 12,
     },
@@ -95,7 +95,7 @@ def setup_alluxio(args):
 
     alluxio_kwargs['target_protocol'] = "s3"
 
-    return fsspec.filesystem("s3", **alluxio_kwargs)
+    return fsspec.filesystem("alluxio", **alluxio_kwargs)
 
 @run_and_time_it
 def run_xgboost_training(data_path: str, num_workers: int, cpus_per_worker: int, args):
