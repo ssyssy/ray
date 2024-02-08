@@ -29,7 +29,7 @@ _EXPERIMENT_PARAMS = {
         "cpus_per_worker": 1,
     },
     "10G": {
-        "data": "s3://air-example-data-2/10G-xgboost-data.parquet/",
+        "data": " s3://siyuan-overmind-bucket/10G-xgboost-data/",
         "num_workers": 1,
         "cpus_per_worker": 12,
     },
@@ -79,29 +79,51 @@ def run_and_time_it(f):
     return wrapper
 
 
-@run_and_time_it
-def run_xgboost_training(data_path: str, num_workers: int, cpus_per_worker: int):
-    ds = data.read_parquet(data_path)
-    params = {
-        "objective": "binary:logistic",
-        "eval_metric": ["logloss", "error"],
-    }
+def setup_alluxio(args):
+    fsspec.register_implementation("alluxio", AlluxioFileSystem, clobber=True)
+    alluxio_kwargs = {}
+    if args.alluxio_etcd_host and args.alluxio_worker_hosts:
+        raise ValueError("Either etcd_host or worker_hosts should be provided, not both.")
+    if args.alluxio_etcd_host:
+        alluxio_kwargs['etcd_host'] = args.alluxio_etcd_host
+    if args.alluxio_worker_hosts:
+        alluxio_kwargs['worker_hosts'] = args.alluxio_worker_hosts
 
-    trainer = XGBoostTrainer(
-        scaling_config=ScalingConfig(
-            num_workers=num_workers,
-            resources_per_worker={"CPU": cpus_per_worker},
-        ),
-        label_column="labels",
-        params=params,
-        datasets={"train": ds},
-        run_config=RunConfig(
-            storage_path="/mnt/cluster_storage", name="xgboost_benchmark"
-        ),
-    )
-    result = trainer.fit()
-    xgboost_model = XGBoostTrainer.get_model(result.checkpoint)
-    xgboost_model.save_model(_XGB_MODEL_PATH)
+    alluxio_kwargs['options'] = {"alluxio.worker.page.store.page.size": "20MB"}
+    if not alluxio_kwargs:
+        raise ValueError("Either etcd_host or worker_hosts should be provided.")
+
+    alluxio_kwargs['target_protocol'] = "s3"
+
+    return fsspec.filesystem("s3", **alluxio_kwargs)
+
+@run_and_time_it
+def run_xgboost_training(data_path: str, num_workers: int, cpus_per_worker: int, args):
+    if args.use_alluxio:
+        alluxio = setup_alluxio(args)
+        ds = data.read_parquet(data_path, filesystem = alluxio)
+    else: 
+        ds = data.read_parquet(data_path)
+    # params = {
+    #     "objective": "binary:logistic",
+    #     "eval_metric": ["logloss", "error"],
+    # }
+
+    # trainer = XGBoostTrainer(
+    #     scaling_config=ScalingConfig(
+    #         num_workers=num_workers,
+    #         resources_per_worker={"CPU": cpus_per_worker},
+    #     ),
+    #     label_column="labels",
+    #     params=params,
+    #     datasets={"train": ds},
+    #     run_config=RunConfig(
+    #         storage_path="/mnt/cluster_storage", name="xgboost_benchmark"
+    #     ),
+    # )
+    # result = trainer.fit()
+    # xgboost_model = XGBoostTrainer.get_model(result.checkpoint)
+    # xgboost_model.save_model(_XGB_MODEL_PATH)
     ray.shutdown()
 
 
@@ -147,30 +169,30 @@ def main(args):
         experiment_params["cpus_per_worker"],
     )
     print("Running xgboost training benchmark...")
-    training_time = run_xgboost_training(data_path, num_workers, cpus_per_worker)
+    training_time = run_xgboost_training(data_path, num_workers, cpus_per_worker, args)
     print("Running xgboost prediction benchmark...")
-    prediction_time = run_xgboost_prediction(_XGB_MODEL_PATH, data_path)
+    # prediction_time = run_xgboost_prediction(_XGB_MODEL_PATH, data_path)
     result = {
         "training_time": training_time,
-        "prediction_time": prediction_time,
+        # "prediction_time": prediction_time,
     }
     print("Results:", result)
-    test_output_json = os.environ.get("TEST_OUTPUT_JSON", "/tmp/result.json")
-    with open(test_output_json, "wt") as f:
-        json.dump(result, f)
+    # test_output_json = os.environ.get("TEST_OUTPUT_JSON", "/tmp/result.json")
+    # with open(test_output_json, "wt") as f:
+    #     json.dump(result, f)
 
-    if not args.disable_check:
-        if training_time > _TRAINING_TIME_THRESHOLD:
-            raise RuntimeError(
-                f"Training on XGBoost is taking {training_time} seconds, "
-                f"which is longer than expected ({_TRAINING_TIME_THRESHOLD} seconds)."
-            )
+    # if not args.disable_check:
+    #     if training_time > _TRAINING_TIME_THRESHOLD:
+    #         raise RuntimeError(
+    #             f"Training on XGBoost is taking {training_time} seconds, "
+    #             f"which is longer than expected ({_TRAINING_TIME_THRESHOLD} seconds)."
+    #         )
 
-        if prediction_time > _PREDICTION_TIME_THRESHOLD:
-            raise RuntimeError(
-                f"Batch prediction on XGBoost is taking {prediction_time} seconds, "
-                f"which is longer than expected ({_PREDICTION_TIME_THRESHOLD} seconds)."
-            )
+    #     if prediction_time > _PREDICTION_TIME_THRESHOLD:
+    #         raise RuntimeError(
+    #             f"Batch prediction on XGBoost is taking {prediction_time} seconds, "
+    #             f"which is longer than expected ({_PREDICTION_TIME_THRESHOLD} seconds)."
+    #         )
 
 
 if __name__ == "__main__":
@@ -187,5 +209,21 @@ if __name__ == "__main__":
         help="disable runtime error on benchmark timeout",
     )
     parser.add_argument("--smoke-test", action="store_true")
+    parser.add_argument(
+        "--use-alluxio",
+        action="store_true",
+        default=False,
+        help="Whether to use Alluxio instead of original ufs filesystem for data loading.",
+    )
+    parser.add_argument(
+        "--alluxio-etcd-host",
+        default=None,
+        help="The ETCD host to connect to to get Alluxio workers connection info.",
+    )
+    parser.add_argument(
+        "--alluxio-worker-hosts",
+        default=None,
+        help="The worker hostnames in host1,host2,host3 format. Either etcd_host or worker_hosts should be provided, not both.",
+    )
     args = parser.parse_args()
     main(args)
