@@ -15,6 +15,9 @@ from ray import data
 from ray.train.xgboost import XGBoostTrainer
 from ray.train import RunConfig, ScalingConfig
 
+import fsspec
+from alluxiofs import AlluxioFileSystem
+
 _XGB_MODEL_PATH = "model.json"
 _TRAINING_TIME_THRESHOLD = 1000
 _PREDICTION_TIME_THRESHOLD = 450
