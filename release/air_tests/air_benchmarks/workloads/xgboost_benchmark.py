@@ -32,7 +32,7 @@ _EXPERIMENT_PARAMS = {
         "cpus_per_worker": 1,
     },
     "10G": {
-        "data": "s3://siyuan-overmind-bucket/10G-xgboost-data/d9ef953e9a7347db8793f9e772357e68_000000.parquet",
+        "data": "s3://siyuan-overmind-bucket/10G-xgboost-data/",
         "num_workers": 1,
         "cpus_per_worker": 12,
     },
@@ -88,7 +88,7 @@ def setup_alluxio(args):
     if args.alluxio_etcd_host and args.alluxio_worker_hosts:
         raise ValueError("Either etcd_host or worker_hosts should be provided, not both.")
     if args.alluxio_etcd_host:
-        alluxio_kwargs['etcd_host'] = args.alluxio_etcd_host
+        alluxio_kwargs['etcd_hosts'] = args.alluxio_etcd_host
     if args.alluxio_worker_hosts:
         alluxio_kwargs['worker_hosts'] = args.alluxio_worker_hosts
 
@@ -107,6 +107,7 @@ def run_xgboost_training(data_path: str, num_workers: int, cpus_per_worker: int,
         ds = data.read_parquet(data_path, filesystem = alluxio)
     else: 
         ds = data.read_parquet(data_path)
+    print(ds)
     # params = {
     #     "objective": "binary:logistic",
     #     "eval_metric": ["logloss", "error"],
