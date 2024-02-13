@@ -107,7 +107,8 @@ def run_xgboost_training(data_path: str, num_workers: int, cpus_per_worker: int,
         ds = data.read_parquet(data_path, filesystem = alluxio)
     else: 
         ds = data.read_parquet(data_path)
-    print(ds)
+    for row in ds.iter_rows():
+        pass
     # params = {
     #     "objective": "binary:logistic",
     #     "eval_metric": ["logloss", "error"],
