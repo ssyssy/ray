@@ -92,7 +92,7 @@ def setup_alluxio(args):
     if args.alluxio_worker_hosts:
         alluxio_kwargs['worker_hosts'] = args.alluxio_worker_hosts
 
-    alluxio_kwargs['options'] = {"alluxio.worker.page.store.page.size": "100MB"}
+    alluxio_kwargs['options'] = {"alluxio.worker.page.store.page.size": "20MB"}
     if not alluxio_kwargs:
         raise ValueError("Either etcd_host or worker_hosts should be provided.")
 
