@@ -32,7 +32,7 @@ _EXPERIMENT_PARAMS = {
         "cpus_per_worker": 1,
     },
     "10G": {
-        "data": "s3://siyuan-overmind-bucket/10G-xgboost-data/d9ef953e9a7347db8793f9e772357e68_000000.parquet",
+        "data": "s3://siyuan-overmind-bucket/10G-xgboost-data/",
         "num_workers": 1,
         "cpus_per_worker": 12,
     },
