@@ -104,11 +104,11 @@ def setup_alluxio(args):
 def run_xgboost_training(data_path: str, num_workers: int, cpus_per_worker: int, args):
     if args.use_alluxio:
         alluxio = setup_alluxio(args)
-        ds = data.read_parquet(data_path)
+        ds = data.read_parquet(data_path, filesystem = alluxio)
     else: 
         ds = data.read_parquet(data_path)
-    # for row in ds.iter_rows():
-    #     pass
+    for row in ds.iter_rows():
+        pass
     # params = {
     #     "objective": "binary:logistic",
     #     "eval_metric": ["logloss", "error"],
