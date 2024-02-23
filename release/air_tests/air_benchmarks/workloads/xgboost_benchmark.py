@@ -109,26 +109,26 @@ def run_xgboost_training(data_path: str, num_workers: int, cpus_per_worker: int,
         ds = data.read_parquet(data_path)
     # for row in ds.iter_rows():
     #     pass
-    # params = {
-    #     "objective": "binary:logistic",
-    #     "eval_metric": ["logloss", "error"],
-    # }
+    params = {
+        "objective": "binary:logistic",
+        "eval_metric": ["logloss", "error"],
+    }
 
-    # trainer = XGBoostTrainer(
-    #     scaling_config=ScalingConfig(
-    #         num_workers=num_workers,
-    #         resources_per_worker={"CPU": cpus_per_worker},
-    #     ),
-    #     label_column="labels",
-    #     params=params,
-    #     datasets={"train": ds},
-    #     run_config=RunConfig(
-    #         storage_path="/mnt/cluster_storage", name="xgboost_benchmark"
-    #     ),
-    # )
-    # result = trainer.fit()
-    # xgboost_model = XGBoostTrainer.get_model(result.checkpoint)
-    # xgboost_model.save_model(_XGB_MODEL_PATH)
+    trainer = XGBoostTrainer(
+        scaling_config=ScalingConfig(
+            num_workers=num_workers,
+            resources_per_worker={"CPU": cpus_per_worker},
+        ),
+        label_column="labels",
+        params=params,
+        datasets={"train": ds},
+        run_config=RunConfig(
+            storage_path="/mnt/cluster_storage", name="xgboost_benchmark"
+        ),
+    )
+    result = trainer.fit()
+    xgboost_model = XGBoostTrainer.get_model(result.checkpoint)
+    xgboost_model.save_model(_XGB_MODEL_PATH)
     ray.shutdown()
 
 
